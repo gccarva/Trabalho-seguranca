@@ -1,4 +1,3 @@
-%%writefile app.py
 import uuid
 import datetime
 import threading
@@ -56,8 +55,7 @@ class StorageManager:
                 json.dump({}, f)
 
     def save_message(self, message):
-        """Update user's heartbeat timestamp"""
-        current_time = datetime.now().isoformat()
+
         with self.lock:
             messages = self.load_message()
 
@@ -94,26 +92,6 @@ class StorageManager:
               return keys
         except (json.JSONDecodeError, FileNotFoundError):
             return {}
-    def cleanup_sessions(self, heartbeat_timeout_minutes: int = 1):
-      with self.lock:
-          sessions = self._load_sessions()
-          current_time = datetime.now()
-          active_sessions = {}
-
-          for user_id, data in sessions.items():
-              # Skip invalid entries
-              if not isinstance(data, dict) or 'heartbeat' not in data:
-                  continue
-
-              try:
-                  last_heartbeat = datetime.fromisoformat(data['heartbeat'])
-                  if current_time - last_heartbeat < timedelta(minutes=heartbeat_timeout_minutes):
-                      active_sessions[user_id] = data
-              except (ValueError, TypeError):
-                  continue
-
-          self._save_sessions(active_sessions)
-          return active_sessions, list(sessions.keys())
     def load_message_by_user_id(self,user_id):
       messages = self.load_message()
       messagestouserid = []
@@ -166,7 +144,6 @@ def get_user_id():
 
 def main():
     user_id,private_key = get_user_id()
-    # Start heartbeat if not already started
     st.write(f"your id is {user_id}")
     message = st.text_input("Movie title", "Life of Brian")
     if not storage_manager.load_public_key(user_id):
