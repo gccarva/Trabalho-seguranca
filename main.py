@@ -145,7 +145,7 @@ def get_user_id():
 def main():
     user_id,private_key = get_user_id()
     st.write(f"your id is {user_id}")
-    message = st.text_input("Movie title", "Life of Brian")
+    message = st.text_input("Message", "Mensagem")
     if not storage_manager.load_public_key(user_id):
       public_keys = base64.b64encode(private_key.public_key().public_bytes(
           encoding=serialization.Encoding.PEM,
