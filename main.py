@@ -1,3 +1,4 @@
+%%writefile app.py
 import uuid
 import datetime
 import threading
@@ -5,11 +6,6 @@ import streamlit as st
 import json
 import base64
 from pathlib import Path
-from typing import Dict
-from datetime import datetime, timedelta
-from streamlit.runtime import get_instance
-from streamlit.runtime.scriptrunner import add_script_run_ctx
-from streamlit.runtime.scriptrunner_utils.script_run_context import get_script_run_ctx
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -20,7 +16,6 @@ from streamlit_cookies_controller import CookieController
 from cryptography.hazmat.primitives import padding as pad_s
 import time
 from streamlit_autorefresh import st_autorefresh
-
 class StorageManager:
     def __init__(self, storage_file: str = "messages.json",public_key_file = "public.json"):
         self.storage_file = Path(storage_file)
@@ -41,7 +36,7 @@ class StorageManager:
           with open(self.public_key_file, 'w') as f:
                 json.dump({}, f)
 
-    def load_message(self) -> Dict:
+    def load_message(self):
         """Load session data from file"""
         try:
             with open(self.storage_file, 'r') as f:
@@ -86,7 +81,7 @@ class StorageManager:
               return keys.get(user_id, {})
         except (json.JSONDecodeError, FileNotFoundError):
             return {}
-    def load_all_public_key(self) -> Dict:
+    def load_all_public_key(self):
         """Load session data from file"""
         try:
             with open(self.public_key_file, 'r') as f:
@@ -143,11 +138,13 @@ def get_user_id():
 
 
 
+
 st_autorefresh(interval=30 * 1000, key="dataframerefresh")
 def main():
+
     user_id,private_key = get_user_id()
     st.write(f"your id is {user_id}")
-    message = st.text_input("Message", "Mensagem")
+    message = st.text_input("Message", "mensagem")
     if not storage_manager.load_public_key(user_id):
       public_keys = base64.b64encode(private_key.public_key().public_bytes(
           encoding=serialization.Encoding.PEM,
@@ -173,9 +170,24 @@ def main():
     for message in storage_manager.load_message_by_user_id(user_id):
       st.write(f"from:{message['from']}")
       st.write(f"{decryptm(message)}")
-    # Display active users and session info (for demonstration)
+
 def decryptm(message):
   _, myprivate = get_user_id()
+  sign = message["sign"]
+  other_public_key_ser = storage_manager.load_public_key(message["from"])
+  other_public_key = serialization.load_pem_public_key(base64.b64decode(other_public_key_ser.encode("utf-8")))
+  try:
+    other_public_key.verify(
+        base64.b64decode(sign.encode("utf-8")),
+        message["from"].encode("utf-8"),
+        padding.PSS(
+            mgf=padding.MGF1(hashes.SHA256()),
+            salt_length=padding.PSS.MAX_LENGTH
+        ),
+        hashes.SHA256()
+    )
+  except:
+    return "Erro: Assinatura invalida"
   if message["type"] == "AES":
     key_encrypted = base64.b64decode(message["key"])
     iv_encrypted = base64.b64decode(message["iv"].encode("utf-8"))
@@ -245,8 +257,18 @@ def decryptm(message):
 
 def send_message(user_id_to, message,option_tipo,user_id_from):
     """Example function for button click"""
+    _, private_key = get_user_id()
     other_public =serialization.load_pem_public_key(base64.b64decode(storage_manager.load_public_key(user_id_to)))
-
+    signed = base64.b64encode(
+        private_key.sign(
+            user_id_from.encode("utf-8"),
+            padding.PSS(
+                mgf=padding.MGF1(hashes.SHA256()),
+                salt_length=padding.PSS.MAX_LENGTH
+            ),
+            hashes.SHA256()
+            
+    )).decode("utf-8")
     if option_tipo == "AES":
       key = os.urandom(32)
       iv = os.urandom(16)
@@ -277,7 +299,7 @@ def send_message(user_id_to, message,option_tipo,user_id_from):
                 algorithm=hashes.SHA256(),
                 label=None
             ))).decode("utf-8")
-      messagejson = {"type":"AES","from": user_id_from, "to": user_id_to,"message": message_encrypted, "key": key_encrypted, "iv": iv_encrypted, "tag":tag_encrypted}
+      messagejson = {"type":"AES","from": user_id_from, "to": user_id_to,"message": message_encrypted, "key": key_encrypted, "iv": iv_encrypted, "tag":tag_encrypted, "sign":signed}
       storage_manager.save_message(messagejson)
 
     elif option_tipo == "RSA":
@@ -287,7 +309,7 @@ def send_message(user_id_to, message,option_tipo,user_id_from):
                 algorithm=hashes.SHA256(),
                 label=None
             ))).decode("utf-8")
-      messagejson = {"type":"RSA","from": user_id_from, "to": user_id_to,"message": message_encrypted}
+      messagejson = {"type":"RSA","from": user_id_from, "to": user_id_to,"message": message_encrypted,"sign":signed}
       storage_manager.save_message(messagejson)
     elif option_tipo == "DES":
       padder = pad_s.PKCS7(64).padder()
@@ -314,15 +336,13 @@ def send_message(user_id_to, message,option_tipo,user_id_from):
                 algorithm=hashes.SHA256(),
                 label=None
             ))).decode("utf-8")
-      messagejson = {"type":"DES","from": user_id_from, "to": user_id_to,"message": message_encrypted,"iv":iv_encrypted,"key": key_encrypted}
+      messagejson = {"type":"DES","from": user_id_from, "to": user_id_to,"message": message_encrypted,"iv":iv_encrypted,"key": key_encrypted,"sign":signed}
       storage_manager.save_message(messagejson)
 
 
 
-# Create a global StorageManager instance
 storage_manager = StorageManager()
 controller = CookieController()
 
 if __name__ == "__main__":
-    # Start the cleanup thread
     main()
