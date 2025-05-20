@@ -1,4 +1,3 @@
-%%writefile app.py
 import uuid
 import datetime
 import threading
