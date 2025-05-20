@@ -19,6 +19,8 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from streamlit_cookies_controller import CookieController
 from cryptography.hazmat.primitives import padding as pad_s
 import time
+from streamlit_autorefresh import st_autorefresh
+
 class StorageManager:
     def __init__(self, storage_file: str = "messages.json",public_key_file = "public.json"):
         self.storage_file = Path(storage_file)
@@ -141,7 +143,7 @@ def get_user_id():
 
 
 
-
+st_autorefresh(interval=30 * 1000, key="dataframerefresh")
 def main():
     user_id,private_key = get_user_id()
     st.write(f"your id is {user_id}")
