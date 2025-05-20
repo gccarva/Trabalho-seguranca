@@ -162,7 +162,7 @@ def main():
       persons,
     )
     option_tipo = st.selectbox(
-      "Qual o tipo de encryptação para a mensagem",
+      "Qual o tipo de criptografia para a mensagem",
       ("AES","RSA","DES"),
     )
     if st.button("Enviar mensagem") and option_who and option_tipo and message:
