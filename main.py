@@ -173,14 +173,8 @@ def main():
 def decryptm(message):
   _, myprivate = get_user_id()
   signedprivate = message["signpriv"]
-  signedpublic = message["signpublic"]
-  sign = myprivate.decrypt(
-            base64.b64decode(signedpublic.encode("utf-8")),
-            padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
-                label=None
-  ))
+  sign = message["sign"]
+  sign = base64.b64decode(sign)
 
   other_public_key_ser = storage_manager.load_public_key(message["from"])
   other_public_key = serialization.load_pem_public_key(base64.b64decode(other_public_key_ser.encode("utf-8")))
@@ -278,15 +272,8 @@ def send_message(user_id_to, message,option_tipo,user_id_from):
             hashes.SHA256()
 
     )).decode("utf-8")
-    signedpublic = base64.b64encode(other_public.encrypt(
-            sign,
-            padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
-                label=None
-            )
-        )).decode("utf-8")
-    
+    sign = base64.b64encode(sign).decode("utf-8")
+
     if option_tipo == "AES":
       key = os.urandom(32)
       iv = os.urandom(16)
@@ -317,7 +304,7 @@ def send_message(user_id_to, message,option_tipo,user_id_from):
                 algorithm=hashes.SHA256(),
                 label=None
             ))).decode("utf-8")
-      messagejson = {"type":"AES","from": user_id_from, "to": user_id_to,"message": message_encrypted, "key": key_encrypted, "iv": iv_encrypted, "tag":tag_encrypted, "signpriv":signedprivate, "signpublic":signedpublic}
+      messagejson = {"type":"AES","from": user_id_from, "to": user_id_to,"message": message_encrypted, "key": key_encrypted, "iv": iv_encrypted, "tag":tag_encrypted, "signpriv":signedprivate, "sign":sign}
       storage_manager.save_message(messagejson)
 
     elif option_tipo == "RSA":
@@ -327,7 +314,7 @@ def send_message(user_id_to, message,option_tipo,user_id_from):
                 algorithm=hashes.SHA256(),
                 label=None
             ))).decode("utf-8")
-      messagejson = {"type":"RSA","from": user_id_from, "to": user_id_to,"message": message_encrypted, "signpriv":signedprivate, "signpublic":signedpublic}
+      messagejson = {"type":"RSA","from": user_id_from, "to": user_id_to,"message": message_encrypted, "signpriv":signedprivate, "sign":sign}
       storage_manager.save_message(messagejson)
     elif option_tipo == "DES":
       padder = pad_s.PKCS7(64).padder()
@@ -354,7 +341,7 @@ def send_message(user_id_to, message,option_tipo,user_id_from):
                 algorithm=hashes.SHA256(),
                 label=None
             ))).decode("utf-8")
-      messagejson = {"type":"DES","from": user_id_from, "to": user_id_to,"message": message_encrypted,"iv":iv_encrypted,"key": key_encrypted, "signpriv":signedprivate, "signpublic":signedpublic}
+      messagejson = {"type":"DES","from": user_id_from, "to": user_id_to,"message": message_encrypted,"iv":iv_encrypted,"key": key_encrypted, "signpriv":signedprivate, "sign":sign}
       storage_manager.save_message(messagejson)
 
 
